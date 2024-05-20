@@ -1,6 +1,5 @@
 import { Request, Response } from "express";
-import { User } from "../models/User";
-import bcrypt from "bcrypt";
+import userService from "../services/userService";
 
 // Menampilkan form login
 export const showLoginForm = (req: Request, res: Response) => {
@@ -10,9 +9,9 @@ export const showLoginForm = (req: Request, res: Response) => {
 // Menangani login
 export const login = async (req: Request, res: Response) => {
   const { username, password } = req.body;
-  const user = await User.query().findOne({ username });
+  const user = await userService.login(username, password);
 
-  if (user && bcrypt.compareSync(password, user.password)) {
+  if (user) {
     res.render("login", { user });
   } else {
     res.status(401).send("Invalid credentials");
@@ -22,13 +21,9 @@ export const login = async (req: Request, res: Response) => {
 // Membuat pengguna baru
 export const createUser = async (req: Request, res: Response) => {
   const { username, password } = req.body;
-  const hashedPassword = bcrypt.hashSync(password, 10);
 
   try {
-    const newUser = await User.query().insert({
-      username,
-      password: hashedPassword,
-    });
+    const newUser = await userService.createUser(username, password);
     res.status(201).json(newUser);
   } catch (error) {
     res.status(500).json({ error: "Failed to create user" });
@@ -38,7 +33,7 @@ export const createUser = async (req: Request, res: Response) => {
 // Membaca data semua pengguna
 export const getUsers = async (req: Request, res: Response) => {
   try {
-    const users = await User.query();
+    const users = await userService.getAllUsers();
     res.json(users);
   } catch (error) {
     res.status(500).json({ error: "Failed to retrieve users" });
@@ -49,7 +44,7 @@ export const getUsers = async (req: Request, res: Response) => {
 export const getUserById = async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
-    const user = await User.query().findById(id);
+    const user = await userService.getUserById(Number(id));
     if (user) {
       res.json(user);
     } else {
@@ -64,13 +59,13 @@ export const getUserById = async (req: Request, res: Response) => {
 export const updateUser = async (req: Request, res: Response) => {
   const { id } = req.params;
   const { username, password } = req.body;
-  const hashedPassword = bcrypt.hashSync(password, 10);
 
   try {
-    const updatedUser = await User.query().patchAndFetchById(id, {
+    const updatedUser = await userService.updateUser(
+      Number(id),
       username,
-      password: hashedPassword,
-    });
+      password
+    );
     res.json(updatedUser);
   } catch (error) {
     res.status(500).json({ error: "Failed to update user" });
@@ -81,7 +76,7 @@ export const updateUser = async (req: Request, res: Response) => {
 export const deleteUser = async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
-    const rowsDeleted = await User.query().deleteById(id);
+    const rowsDeleted = await userService.deleteUser(Number(id));
     if (rowsDeleted) {
       res.json({ message: "User deleted" });
     } else {
